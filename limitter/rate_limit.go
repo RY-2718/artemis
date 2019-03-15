@@ -29,10 +29,10 @@ func RunWithRate(ctx context.Context, rate *Rate, f func()) {
 	interval := uint64(rate.Per.Nanoseconds() / int64(rate.Freq))
 	began := time.Now()
 
-	worker := func(ctx context.Context) {
+	worker := func(quit <-chan bool) {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-quit:
 				return
 			default:
 				now, next := time.Now(), began.Add(time.Duration(cnt*interval))
@@ -47,7 +47,6 @@ func RunWithRate(ctx context.Context, rate *Rate, f func()) {
 	wg := &sync.WaitGroup{}
 	workers := uint64(0)
 	ticker := time.NewTicker(1 * time.Second)
-	cancelers := make([]context.CancelFunc, 0)
 	p := SlowStart
 
 	file, err := os.Create("./result.csv")
@@ -58,6 +57,7 @@ func RunWithRate(ctx context.Context, rate *Rate, f func()) {
 
 	w := csv.NewWriter(file)
 	_ = w.Write([]string{"rps", "rrps"})
+	quit := make(chan bool, 1000)
 
 L:
 	for {
@@ -85,9 +85,7 @@ L:
 				for i := 0; i < delta; i++ {
 					go func() {
 						defer wg.Done()
-						_ctx, cancel := context.WithCancel(ctx)
-						cancelers = append(cancelers, cancel)
-						worker(_ctx)
+						worker(quit)
 					}()
 				}
 			} else if p == FastRecovery && rps < rrps*0.9 {
@@ -96,9 +94,7 @@ L:
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					_ctx, cancel := context.WithCancel(ctx)
-					cancelers = append(cancelers, cancel)
-					worker(_ctx)
+					worker(quit)
 				}()
 			} else if rps >= rrps*1.1 {
 				// 半減させる
@@ -107,9 +103,7 @@ L:
 
 				log.Printf("cancel %d goroutines from %d goroutines", delta, runtime.NumGoroutine())
 				for i := 0; i < int(delta); i++ {
-					log.Printf("slice length: %d, goroutines: %d", len(cancelers), runtime.NumGoroutine())
-					cancelers[0]()
-					cancelers = cancelers[1:]
+					quit <- true
 				}
 				p = FastRecovery
 			}
