@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/RY-2718/rate_limit/limitter"
+	"github.com/RY-2718/goroutine_compressor/limitter"
 )
 
 func main() {

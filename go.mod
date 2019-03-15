@@ -1,3 +1,3 @@
-module github.com/RY-2718/rate_limit
+module github.com/RY-2718/goroutine_compressor
 
 go 1.12
