@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/RY-2718/rate_limit/limitter"
 	"time"
+
+	"github.com/RY-2718/rate_limit/limitter"
 )
 
 func main() {
