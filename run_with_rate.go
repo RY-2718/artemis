@@ -10,6 +10,7 @@ import (
 type Rate struct {
 	Freq      uint64
 	Per       time.Duration // (int) * time.Second
+	ErrorRate float64
 	rps       float64
 	targetRps float64
 	numWorker uint64
@@ -74,7 +75,7 @@ L:
 			rate.rps = float64(cnt) / float64(time.Since(began)) * float64(time.Second)
 			rate.targetRps = float64(rate.Freq) * float64(rate.Per) / float64(time.Second)
 
-			if p == SlowStart && rate.rps < rate.targetRps*0.9 {
+			if p == SlowStart && rate.rps < rate.targetRps*(1.0-rate.ErrorRate) {
 				// Add workers exponentially when slow start
 				delta := int(rate.numWorker)
 				rate.numWorker = uint64(math.Max(1, float64(rate.numWorker*2)))
@@ -85,16 +86,18 @@ L:
 						worker(quit)
 					}()
 				}
-			} else if p == FastRecovery && rate.rps < rate.targetRps*0.9 {
+			} else if p == FastRecovery && rate.rps < rate.targetRps*(1.0-rate.ErrorRate) {
 				// Add workers gently when fast recovery
-				// TODO: 補充するペースを調整？
-				rate.numWorker++
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					worker(quit)
-				}()
-			} else if rate.rps >= rate.targetRps*1.1 {
+				delta := int(float64(rate.numWorker) * 0.1)
+				rate.numWorker += uint64(delta)
+				wg.Add(delta)
+				for i := 0; i < delta; i++ {
+					go func() {
+						defer wg.Done()
+						worker(quit)
+					}()
+				}
+			} else if rate.rps >= rate.targetRps*(1.0+rate.ErrorRate) {
 				// Reduce workers by half
 				delta := rate.numWorker / 2
 				rate.numWorker -= delta
