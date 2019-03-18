@@ -3,6 +3,12 @@
 Artemis is a library which dynamically resize the amount of workers (goroutines)
 to run functions in parallel at your target rate.
 
+## Installation
+
+```shell
+$ go get -u github.com/RY-2718/artemis
+```
+
 ## Usage
 
 ```go
@@ -58,3 +64,7 @@ then increases again when rps gets below the target.
 ![RPS = 100](docs/100.png "RPS = 100")
 
 ![RPS = 1000](docs/1000.png "RPS = 1000")
+
+## License
+
+MIT
