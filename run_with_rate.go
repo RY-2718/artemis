@@ -2,19 +2,23 @@ package artemis
 
 import (
 	"context"
-	"encoding/csv"
-	"fmt"
-	"log"
 	"math"
-	"os"
-	"runtime"
 	"sync"
 	"time"
 )
 
 type Rate struct {
-	Freq uint64
-	Per  time.Duration // (int) * time.Second
+	Freq      uint64
+	Per       time.Duration // (int) * time.Second
+	rps       float64
+	targetRps float64
+	numWorker uint64
+}
+
+type Report struct {
+	RPS       float64
+	TargetRPS float64
+	NumWorker uint64
 }
 
 type Phase int
@@ -23,6 +27,14 @@ const (
 	SlowStart Phase = iota
 	FastRecovery
 )
+
+func (r *Rate) Report() Report {
+	return Report{
+		RPS:       r.rps,
+		TargetRPS: r.targetRps,
+		NumWorker: r.numWorker,
+	}
+}
 
 func RunWithRate(ctx context.Context, rate *Rate, f func()) {
 	cnt := uint64(0)
@@ -43,20 +55,10 @@ func RunWithRate(ctx context.Context, rate *Rate, f func()) {
 		}
 	}
 
-	// measure actual rate
 	wg := &sync.WaitGroup{}
-	workers := uint64(0)
 	ticker := time.NewTicker(1 * time.Second)
 	p := SlowStart
 
-	file, err := os.Create("./result.csv")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	w := csv.NewWriter(file)
-	_ = w.Write([]string{"rps", "rrps"})
 	quit := make(chan bool, 1000)
 
 L:
@@ -65,22 +67,17 @@ L:
 		case <-ctx.Done():
 			break L
 		case <-ticker.C:
-			rps := float64(cnt) / float64(time.Since(began)) * float64(time.Second)
-			rrps := float64(rate.Freq) * float64(rate.Per) / float64(time.Second)
-			log.Printf("rps: %v (cnt: %d, elapsed: %v, workers: %d, numGoroutine: %d)", rps, cnt, time.Since(began), workers, runtime.NumGoroutine())
-			log.Printf("rrps: %v", rrps)
+			// measure actual rate
+			rate.rps = float64(cnt) / float64(time.Since(began)) * float64(time.Second)
+			rate.targetRps = float64(rate.Freq) * float64(rate.Per) / float64(time.Second)
+			//log.Printf("rps: %v (cnt: %d, elapsed: %v, workers: %d, numGoroutine: %d)", rate.rps, cnt, time.Since(began), rate.numWorker, runtime.NumGoroutine())
+			//log.Printf("rrps: %v", rate.targetRps)
 
-			err := w.Write([]string{fmt.Sprintf("%f", rps), fmt.Sprintf("%f", rrps)})
-			if err != nil {
-				log.Print(err)
-			}
-			w.Flush()
-
-			if p == SlowStart && rps < rrps*0.9 {
+			if p == SlowStart && rate.rps < rate.targetRps*0.9 {
 				// workerが足りてない場合は補充する
 				// スロースタート
-				delta := int(workers)
-				workers = uint64(math.Max(1, float64(workers*2)))
+				delta := int(rate.numWorker)
+				rate.numWorker = uint64(math.Max(1, float64(rate.numWorker*2)))
 				wg.Add(delta)
 				for i := 0; i < delta; i++ {
 					go func() {
@@ -88,20 +85,21 @@ L:
 						worker(quit)
 					}()
 				}
-			} else if p == FastRecovery && rps < rrps*0.9 {
+			} else if p == FastRecovery && rate.rps < rate.targetRps*0.9 {
 				// 半減させたあと足りない場合は１ずつ補充
-				workers++
+				// TODO: 補充するペースを調整？
+				rate.numWorker++
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					worker(quit)
 				}()
-			} else if rps >= rrps*1.1 {
+			} else if rate.rps >= rate.targetRps*1.1 {
 				// 半減させる
-				delta := workers / 2
-				workers -= delta
+				delta := rate.numWorker / 2
+				rate.numWorker -= delta
 
-				log.Printf("cancel %d goroutines from %d goroutines", delta, runtime.NumGoroutine())
+				//log.Printf("cancel %d goroutines from %d goroutines", delta, runtime.NumGoroutine())
 				for i := 0; i < int(delta); i++ {
 					quit <- true
 				}
