@@ -65,6 +65,9 @@ L:
 	for {
 		select {
 		case <-ctx.Done():
+			for i := 0; i < int(rate.numWorker); i++ {
+				quit <- true
+			}
 			break L
 		case <-ticker.C:
 			// measure actual rate
