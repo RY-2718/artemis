@@ -10,9 +10,7 @@ package main
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
-	"os"
 	"runtime"
 	"time"
 
