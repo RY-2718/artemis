@@ -46,3 +46,15 @@ func main() {
 	}
 }
 ```
+
+## Performance
+
+Here we show the performance of Artemis at [100, 1000] rps (rate per second).
+
+Artemis increases workers exponentially at first, 
+and decreases them by half when rps exceeds target rps, 
+then increases again when rps gets below the target.
+
+![RPS = 100](docs/100.png "RPS = 100")
+
+![RPS = 1000](docs/1000.png "RPS = 1000")
