@@ -73,12 +73,9 @@ L:
 			// measure actual rate
 			rate.rps = float64(cnt) / float64(time.Since(began)) * float64(time.Second)
 			rate.targetRps = float64(rate.Freq) * float64(rate.Per) / float64(time.Second)
-			//log.Printf("rps: %v (cnt: %d, elapsed: %v, workers: %d, numGoroutine: %d)", rate.rps, cnt, time.Since(began), rate.numWorker, runtime.NumGoroutine())
-			//log.Printf("rrps: %v", rate.targetRps)
 
 			if p == SlowStart && rate.rps < rate.targetRps*0.9 {
-				// workerが足りてない場合は補充する
-				// スロースタート
+				// Add workers exponentially when slow start
 				delta := int(rate.numWorker)
 				rate.numWorker = uint64(math.Max(1, float64(rate.numWorker*2)))
 				wg.Add(delta)
@@ -89,7 +86,7 @@ L:
 					}()
 				}
 			} else if p == FastRecovery && rate.rps < rate.targetRps*0.9 {
-				// 半減させたあと足りない場合は１ずつ補充
+				// Add workers gently when fast recovery
 				// TODO: 補充するペースを調整？
 				rate.numWorker++
 				wg.Add(1)
@@ -98,11 +95,10 @@ L:
 					worker(quit)
 				}()
 			} else if rate.rps >= rate.targetRps*1.1 {
-				// 半減させる
+				// Reduce workers by half
 				delta := rate.numWorker / 2
 				rate.numWorker -= delta
 
-				//log.Printf("cancel %d goroutines from %d goroutines", delta, runtime.NumGoroutine())
 				for i := 0; i < int(delta); i++ {
 					quit <- true
 				}
