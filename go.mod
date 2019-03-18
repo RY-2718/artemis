@@ -1,3 +1,3 @@
-module github.com/RY-2718/goroutine_compressor
+module github.com/RY-2718/artemis
 
 go 1.12

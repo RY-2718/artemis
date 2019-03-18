@@ -1,4 +1,4 @@
-package limitter
+package artemis
 
 import (
 	"context"

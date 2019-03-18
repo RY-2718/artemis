@@ -1,4 +1,4 @@
-# Goroutine Compressor
+# Artemis
 
-This project aims to provide a function that controls the amount of workers (goroutines)
-so that we can run workers in parallel with arbitrary rate.
+Artemis is a library which dynamically resize the amount of workers (goroutines)
+to run functions in parallel at your target rate.
