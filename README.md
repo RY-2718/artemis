@@ -1,7 +1,7 @@
 # Artemis
 
 [![GolangCI](https://golangci.com/badges/github.com/RY-2718/artemis.svg)](https://golangci.com)
-[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
+[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE.txt)
 
 Artemis is a library which dynamically resize the amount of workers (goroutines)
 to run functions in parallel at your target rate.
