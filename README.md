@@ -40,6 +40,7 @@ func main() {
 	}
 
 	ctx := context.Background()
+	// Runner has responsibility for running function and reporting stats
 	runner := artemis.Runner{}
 
 	go runner.RunWithRate(ctx, &rate, f)
@@ -49,7 +50,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			// rate.Report() returns a struct which have RPS (rate per second), TargetRPS
+			// runner.Report() returns a struct which have RPS (rate per second), TargetRPS
 			r := runner.Report()
 			fmt.Printf("%f, %f, %d\n", r.RPS, r.TargetRPS, runtime.NumGoroutine())
 		}
