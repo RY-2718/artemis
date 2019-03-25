@@ -1,5 +1,6 @@
 # Artemis
 
+[![Build Status](https://travis-ci.org/RY-2718/artemis.svg?branch=master)](https://travis-ci.org/RY-2718/artemis)
 [![GolangCI](https://golangci.com/badges/github.com/RY-2718/artemis.svg)](https://golangci.com)
 [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE.txt)
 
