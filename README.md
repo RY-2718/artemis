@@ -40,16 +40,18 @@ func main() {
 	}
 
 	ctx := context.Background()
+	// Runner has responsibility for running function and reporting stats
+	runner := artemis.Runner{}
 
-	go artemis.RunWithRate(ctx, &rate, f)
+	go runner.RunWithRate(ctx, &rate, f)
 
     // If you want to report periodically, using Ticker is a solution
 	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
-			// rate.Report() returns a struct which have RPS (rate per second), TargetRPS
-			r := rate.Report()
+			// runner.Report() returns a struct which have RPS (rate per second), TargetRPS
+			r := runner.Report()
 			fmt.Printf("%f, %f, %d\n", r.RPS, r.TargetRPS, runtime.NumGoroutine())
 		}
 	}

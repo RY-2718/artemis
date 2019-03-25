@@ -35,6 +35,9 @@ type Rate struct {
 	Freq      uint64
 	Per       time.Duration // (int) * time.Second
 	ErrorRate float64
+}
+
+type Runner struct {
 	rps       float64
 	targetRps float64
 	numWorker uint64
@@ -53,7 +56,7 @@ const (
 	FastRecovery
 )
 
-func (r *Rate) Report() Report {
+func (r *Runner) Report() Report {
 	return Report{
 		RPS:       r.rps,
 		TargetRPS: r.targetRps,
@@ -61,7 +64,7 @@ func (r *Rate) Report() Report {
 	}
 }
 
-func RunWithRate(ctx context.Context, rate *Rate, f func()) {
+func (r *Runner) RunWithRate(ctx context.Context, rate *Rate, f func()) {
 	cnt := uint64(0)
 	interval := uint64(rate.Per.Nanoseconds() / int64(rate.Freq))
 	began := time.Now()
@@ -90,19 +93,19 @@ L:
 	for {
 		select {
 		case <-ctx.Done():
-			for i := 0; i < int(rate.numWorker); i++ {
+			for i := 0; i < int(r.numWorker); i++ {
 				quit <- true
 			}
 			break L
 		case <-ticker.C:
 			// measure actual rate
-			rate.rps = float64(cnt) / float64(time.Since(began)) * float64(time.Second)
-			rate.targetRps = float64(rate.Freq) * float64(rate.Per) / float64(time.Second)
+			r.rps = float64(cnt) / float64(time.Since(began)) * float64(time.Second)
+			r.targetRps = float64(rate.Freq) * float64(rate.Per) / float64(time.Second)
 
-			if p == SlowStart && rate.rps < rate.targetRps*(1.0-rate.ErrorRate) {
+			if p == SlowStart && r.rps < r.targetRps*(1.0-rate.ErrorRate) {
 				// Add workers exponentially when slow start
-				delta := int(rate.numWorker)
-				rate.numWorker = uint64(math.Max(1, float64(rate.numWorker*2)))
+				delta := int(r.numWorker)
+				r.numWorker = uint64(math.Max(1, float64(r.numWorker*2)))
 				wg.Add(delta)
 				for i := 0; i < delta; i++ {
 					go func() {
@@ -110,10 +113,10 @@ L:
 						worker(quit)
 					}()
 				}
-			} else if p == FastRecovery && rate.rps < rate.targetRps*(1.0-rate.ErrorRate) {
+			} else if p == FastRecovery && r.rps < r.targetRps*(1.0-rate.ErrorRate) {
 				// Add workers gently when fast recovery
-				delta := int(float64(rate.numWorker) * 0.1)
-				rate.numWorker += uint64(delta)
+				delta := int(float64(r.numWorker) * 0.1)
+				r.numWorker += uint64(delta)
 				wg.Add(delta)
 				for i := 0; i < delta; i++ {
 					go func() {
@@ -121,10 +124,10 @@ L:
 						worker(quit)
 					}()
 				}
-			} else if rate.rps >= rate.targetRps*(1.0+rate.ErrorRate) {
+			} else if r.rps >= r.targetRps*(1.0+rate.ErrorRate) {
 				// Reduce workers by half
-				delta := rate.numWorker / 2
-				rate.numWorker -= delta
+				delta := r.numWorker / 2
+				r.numWorker -= delta
 
 				for i := 0; i < int(delta); i++ {
 					quit <- true
